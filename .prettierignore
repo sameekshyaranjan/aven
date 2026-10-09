@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+.venv/
+venv/
+__pycache__/
+PDFS/
+pdfs/
+*.pdf
