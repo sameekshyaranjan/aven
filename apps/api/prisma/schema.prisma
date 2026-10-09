@@ -1,0 +1,13 @@
+// Prisma Schema for Aven Core API
+// Sole Write Authority over PostgreSQL (PRD §5.1)
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
