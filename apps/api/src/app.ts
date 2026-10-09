@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { env } from './config/env';
 import { requestIdMiddleware } from './middleware/request-id';
 import { requestLoggerMiddleware } from './middleware/request-logger';
+import { sendSuccess } from './utils/response';
 
 /**
  * Application Factory
@@ -27,14 +28,12 @@ export function createApp(): Application {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   // Health Probe Route
-  app.get('/health', (req: Request, res: Response) => {
-    res.status(200).json({
+  app.get('/health', (_req: Request, res: Response) => {
+    return sendSuccess(res, {
       status: 'ok',
       service: 'aven-api',
       version: '0.1.0',
-      requestId: req.id,
       uptime: Math.floor(process.uptime()),
-      timestamp: new Date().toISOString(),
     });
   });
 
