@@ -2,6 +2,8 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { env } from './config/env';
+import { errorHandler } from './middleware/error-handler';
+import { notFoundHandler } from './middleware/not-found';
 import { requestIdMiddleware } from './middleware/request-id';
 import { requestLoggerMiddleware } from './middleware/request-logger';
 import { sendSuccess } from './utils/response';
@@ -37,7 +39,14 @@ export function createApp(): Application {
     });
   });
 
+  // 404 Catch-All Middleware (captures unmatched routes)
+  app.use(notFoundHandler);
+
+  // Global Centralized Error Handling Middleware (must be last)
+  app.use(errorHandler);
+
   return app;
 }
 
 export default createApp;
+
