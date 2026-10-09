@@ -5,6 +5,7 @@ declare module '@prisma/client' {
     $connect(): Promise<void>;
     $disconnect(): Promise<void>;
     $on(event: string, callback: (...args: unknown[]) => void): void;
+    $queryRawUnsafe(query: string, ...values: unknown[]): Promise<unknown>;
     [key: string]: unknown;
   }
 }
