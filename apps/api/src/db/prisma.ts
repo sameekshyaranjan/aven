@@ -78,4 +78,5 @@ export async function isDatabaseHealthy(): Promise<boolean> {
   }
 }
 
+export { UserRole } from '@prisma/client';
 export default prisma;
