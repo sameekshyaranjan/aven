@@ -23,7 +23,19 @@ const envSchema = z.object({
       required_error: 'JWT_SECRET is required to sign session tokens.',
     })
     .min(32, 'JWT_SECRET must be at least 32 characters long for cryptographic security.'),
-  JWT_EXPIRES_IN: z.string().default('1d'),
+  JWT_EXPIRES_IN: z
+    .string()
+    .regex(
+      /^(?:[1-9]|[1-5][0-9])m$/,
+      'JWT_EXPIRES_IN must be between 1m and 59m for a short-lived user session.',
+    )
+    .default('15m'),
+
+  // Public API Abuse Protection
+  LOGIN_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
+  LOGIN_RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(10),
+  PUBLIC_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(1),
+  PUBLIC_RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(60),
 
   // AI Advisory Service
   AI_SERVICE_URL: z.string().url().default('http://localhost:8000'),
@@ -62,21 +74,18 @@ function loadAndValidateEnv(): Env {
   const result = envSchema.safeParse(parseTarget);
 
   if (!result.success) {
-    // eslint-disable-next-line no-console
     console.error('\n============================================================');
-    // eslint-disable-next-line no-console
     console.error('❌ [aven-api] Fatal Configuration Error: Invalid Environment Variables');
-    // eslint-disable-next-line no-console
     console.error('============================================================');
 
     for (const issue of result.error.issues) {
       const field = issue.path.join('.');
-      // eslint-disable-next-line no-console
       console.error(`  • ${field}: ${issue.message}`);
     }
 
-    // eslint-disable-next-line no-console
-    console.error('\n👉 Please check your local apps/api/.env file against apps/api/.env.example.\n');
+    console.error(
+      '\n👉 Please check your local apps/api/.env file against apps/api/.env.example.\n',
+    );
     process.exit(1);
   }
 
