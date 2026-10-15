@@ -90,6 +90,7 @@ model PolicyVersion {
 
   policyProduct    PolicyProduct              @relation(fields: [policyProductId], references: [id], onDelete: Restrict)
   compatibleAddons PolicyAddonCompatibility[]
+  clauses          PolicyClause[]
 
   @@unique([policyProductId, versionNumber])
   @@index([policyProductId, status, effectiveFrom, effectiveTo])
@@ -109,6 +110,7 @@ model AddonVersion {
 
   insurer            Hospital                   @relation("AddonVersionInsurer", fields: [insurerId], references: [id], onDelete: Restrict)
   compatiblePolicies PolicyAddonCompatibility[]
+  clauses            PolicyClause[]
 
   @@unique([insurerId, code, versionNumber])
   @@index([insurerId, status, effectiveFrom, effectiveTo])
@@ -126,4 +128,24 @@ model PolicyAddonCompatibility {
   @@id([policyVersionId, addonVersionId])
   @@index([addonVersionId])
   @@map("policy_addon_compatibilities")
+}
+
+model PolicyClause {
+  id              String   @id @default(uuid()) @db.Uuid
+  policyVersionId String   @db.Uuid
+  addonVersionId  String?  @db.Uuid
+  clauseId        String
+  versionNumber   Int
+  heading         String
+  text            String
+  pageLabel       String
+  sourceVersion   String
+  createdAt       DateTime @default(now())
+
+  policyVersion PolicyVersion @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
+  addonVersion  AddonVersion? @relation(fields: [addonVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([clauseId, versionNumber])
+  @@index([policyVersionId, addonVersionId])
+  @@map("policy_clauses")
 }
