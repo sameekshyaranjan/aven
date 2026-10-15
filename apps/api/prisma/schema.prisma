@@ -19,6 +19,14 @@ enum UserRole {
   PATIENT
 }
 
+enum PolicyVersionStatus {
+  ACTIVE
+}
+
+enum AddonVersionStatus {
+  ACTIVE
+}
+
 model Hospital {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
@@ -30,7 +38,9 @@ model Hospital {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users User[]
+  users          User[]
+  policyProducts PolicyProduct[] @relation("PolicyProductInsurer")
+  addonVersions  AddonVersion[]  @relation("AddonVersionInsurer")
 
   @@index([isActive])
   @@map("hospitals")
@@ -51,4 +61,91 @@ model User {
   @@index([hospitalId])
   @@index([isActive])
   @@map("users")
+}
+
+model PolicyProduct {
+  id        String   @id @default(uuid()) @db.Uuid
+  insurerId String   @db.Uuid
+  code      String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  insurer  Hospital        @relation("PolicyProductInsurer", fields: [insurerId], references: [id], onDelete: Restrict)
+  versions PolicyVersion[]
+
+  @@unique([insurerId, code])
+  @@index([insurerId])
+  @@map("policy_products")
+}
+
+model PolicyVersion {
+  id              String              @id @default(uuid()) @db.Uuid
+  policyProductId String              @db.Uuid
+  versionNumber   Int
+  status          PolicyVersionStatus @default(ACTIVE)
+  effectiveFrom   DateTime            @db.Date
+  effectiveTo     DateTime?           @db.Date
+  createdAt       DateTime            @default(now())
+
+  policyProduct    PolicyProduct              @relation(fields: [policyProductId], references: [id], onDelete: Restrict)
+  compatibleAddons PolicyAddonCompatibility[]
+  clauses          PolicyClause[]
+
+  @@unique([policyProductId, versionNumber])
+  @@index([policyProductId, status, effectiveFrom, effectiveTo])
+  @@map("policy_versions")
+}
+
+model AddonVersion {
+  id            String             @id @default(uuid()) @db.Uuid
+  insurerId     String             @db.Uuid
+  code          String
+  name          String
+  versionNumber Int
+  status        AddonVersionStatus @default(ACTIVE)
+  effectiveFrom DateTime           @db.Date
+  effectiveTo   DateTime?          @db.Date
+  createdAt     DateTime           @default(now())
+
+  insurer            Hospital                   @relation("AddonVersionInsurer", fields: [insurerId], references: [id], onDelete: Restrict)
+  compatiblePolicies PolicyAddonCompatibility[]
+  clauses            PolicyClause[]
+
+  @@unique([insurerId, code, versionNumber])
+  @@index([insurerId, status, effectiveFrom, effectiveTo])
+  @@map("addon_versions")
+}
+
+model PolicyAddonCompatibility {
+  policyVersionId String   @db.Uuid
+  addonVersionId  String   @db.Uuid
+  createdAt       DateTime @default(now())
+
+  policyVersion PolicyVersion @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
+  addonVersion  AddonVersion  @relation(fields: [addonVersionId], references: [id], onDelete: Restrict)
+
+  @@id([policyVersionId, addonVersionId])
+  @@index([addonVersionId])
+  @@map("policy_addon_compatibilities")
+}
+
+model PolicyClause {
+  id              String   @id @default(uuid()) @db.Uuid
+  policyVersionId String   @db.Uuid
+  addonVersionId  String?  @db.Uuid
+  clauseId        String
+  versionNumber   Int
+  heading         String
+  text            String
+  pageLabel       String
+  sourceVersion   String
+  createdAt       DateTime @default(now())
+
+  policyVersion PolicyVersion @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
+  addonVersion  AddonVersion? @relation(fields: [addonVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([clauseId, versionNumber])
+  @@index([policyVersionId, addonVersionId])
+  @@map("policy_clauses")
 }
