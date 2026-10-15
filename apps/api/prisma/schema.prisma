@@ -19,6 +19,10 @@ enum UserRole {
   PATIENT
 }
 
+enum PolicyVersionStatus {
+  ACTIVE
+}
+
 model Hospital {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
@@ -30,7 +34,8 @@ model Hospital {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users User[]
+  users          User[]
+  policyProducts PolicyProduct[] @relation("PolicyProductInsurer")
 
   @@index([isActive])
   @@map("hospitals")
@@ -51,4 +56,36 @@ model User {
   @@index([hospitalId])
   @@index([isActive])
   @@map("users")
+}
+
+model PolicyProduct {
+  id        String   @id @default(uuid()) @db.Uuid
+  insurerId String   @db.Uuid
+  code      String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  insurer  Hospital        @relation("PolicyProductInsurer", fields: [insurerId], references: [id], onDelete: Restrict)
+  versions PolicyVersion[]
+
+  @@unique([insurerId, code])
+  @@index([insurerId])
+  @@map("policy_products")
+}
+
+model PolicyVersion {
+  id              String              @id @default(uuid()) @db.Uuid
+  policyProductId String              @db.Uuid
+  versionNumber   Int
+  status          PolicyVersionStatus @default(ACTIVE)
+  effectiveFrom   DateTime            @db.Date
+  effectiveTo     DateTime?           @db.Date
+  createdAt       DateTime            @default(now())
+
+  policyProduct PolicyProduct @relation(fields: [policyProductId], references: [id], onDelete: Restrict)
+
+  @@unique([policyProductId, versionNumber])
+  @@index([policyProductId, status, effectiveFrom, effectiveTo])
+  @@map("policy_versions")
 }
