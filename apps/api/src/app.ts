@@ -6,6 +6,7 @@ import { errorHandler } from './middleware/error-handler';
 import { notFoundHandler } from './middleware/not-found';
 import { requestIdMiddleware } from './middleware/request-id';
 import { requestLoggerMiddleware } from './middleware/request-logger';
+import { authRouter } from './modules/auth/auth.routes';
 import { sendSuccess } from './utils/response';
 
 /**
@@ -39,6 +40,9 @@ export function createApp(): Application {
     });
   });
 
+  // Public demo authentication routes
+  app.use('/auth', authRouter);
+
   // 404 Catch-All Middleware (captures unmatched routes)
   app.use(notFoundHandler);
 
@@ -49,4 +53,3 @@ export function createApp(): Application {
 }
 
 export default createApp;
-

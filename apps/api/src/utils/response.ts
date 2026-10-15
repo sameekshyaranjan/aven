@@ -20,6 +20,7 @@ export interface ResponseMeta {
   requestId: string;
   timestamp: string;
   pagination?: PaginationMeta;
+  retryAfterSeconds?: number;
   [key: string]: unknown;
 }
 
