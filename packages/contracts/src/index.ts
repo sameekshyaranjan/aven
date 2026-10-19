@@ -19,3 +19,6 @@ export * from './envelope';
 
 // Seeded demo authentication request and response contracts
 export * from './auth';
+
+// Validated parameter shapes for deterministic policy rules
+export * from './policy-rules';
