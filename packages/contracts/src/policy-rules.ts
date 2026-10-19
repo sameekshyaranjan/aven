@@ -19,7 +19,7 @@ const RuleCodeSchema = z
 
 const WaitingPeriodBaseSchema = z.object({
   durationMonths: z.number().int().nonnegative(),
-  startDateSource: z.enum(['POLICY_EFFECTIVE_DATE', 'COVERED_PERSON_START_DATE']),
+  startDateSource: z.enum(['POLICY_COVERAGE_START_DATE', 'COVERED_PERSON_START_DATE']),
 });
 
 /** Parameters used later by the deterministic calendar-month calculator. */

@@ -7,9 +7,8 @@
  *  - IsoDateSchema: validates ISO 8601 datetime strings. The API always
  *    serializes dates as strings over JSON — never raw Date objects — so
  *    clients receive a consistent, timezone-aware string format.
- *  - IsoDateOnlySchema: validates YYYY-MM-DD date strings used for
- *    admission dates, birth dates, and policy effective dates where
- *    time-of-day is irrelevant.
+ *  - IsoDateOnlySchema: validates YYYY-MM-DD strings used for admission,
+ *    birth, and enrollment coverage dates where time-of-day is irrelevant.
  *
  * No Express, Prisma, or Node-specific imports are allowed here.
  * This file must be safe to import in both apps/api and apps/web.
@@ -55,16 +54,14 @@ export type IsoDateTime = z.infer<typeof IsoDateTimeSchema>;
 
 /**
  * Validates a YYYY-MM-DD date string.
- * Used for admission dates, birth dates, and policy effective dates
+ * Used for admission dates, birth dates, and enrollment coverage dates
  * where time-of-day precision is not required.
  *
  * @example "2026-10-09"
  */
-export const IsoDateOnlySchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, {
-    message: 'Must be a YYYY-MM-DD date string (e.g. 2026-10-09)',
-  });
+export const IsoDateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
+  message: 'Must be a YYYY-MM-DD date string (e.g. 2026-10-09)',
+});
 
 export type IsoDateOnly = z.infer<typeof IsoDateOnlySchema>;
 

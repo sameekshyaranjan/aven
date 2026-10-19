@@ -22,3 +22,6 @@ export * from './auth';
 
 // Validated parameter shapes for deterministic policy rules
 export * from './policy-rules';
+
+// Reviewer-side resolved policy context
+export * from './policy-context';
