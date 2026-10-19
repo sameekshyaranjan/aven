@@ -33,6 +33,14 @@ enum PolicyRuleType {
   ADDON_PRECEDENCE
 }
 
+enum MemberRelationship {
+  SELF
+  SPOUSE
+  CHILD
+  PARENT
+  OTHER
+}
+
 model Hospital {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
@@ -90,18 +98,63 @@ model PolicyVersion {
   policyProductId String              @db.Uuid
   versionNumber   Int
   status          PolicyVersionStatus @default(ACTIVE)
-  effectiveFrom   DateTime            @db.Date
-  effectiveTo     DateTime?           @db.Date
   createdAt       DateTime            @default(now())
 
   policyProduct    PolicyProduct              @relation(fields: [policyProductId], references: [id], onDelete: Restrict)
   compatibleAddons PolicyAddonCompatibility[]
   clauses          PolicyClause[]
   rules            PolicyRuleVersion[]
+  enrollments      PolicyEnrollment[]
 
   @@unique([policyProductId, versionNumber])
-  @@index([policyProductId, status, effectiveFrom, effectiveTo])
+  @@index([policyProductId, status])
   @@map("policy_versions")
+}
+
+model PolicyEnrollment {
+  id              String   @id @default(uuid()) @db.Uuid
+  policyNumber    String   @unique
+  policyVersionId String   @db.Uuid
+  coverageStart   DateTime @db.Date
+  coverageEnd     DateTime @db.Date
+  createdAt       DateTime @default(now())
+
+  policyVersion  PolicyVersion           @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
+  members        Member[]
+  selectedAddons PolicyEnrollmentAddon[]
+
+  @@index([policyVersionId, coverageStart, coverageEnd])
+  @@map("policy_enrollments")
+}
+
+model Member {
+  id             String             @id @default(uuid()) @db.Uuid
+  enrollmentId   String             @db.Uuid
+  memberCode     String
+  fullName       String
+  dateOfBirth    DateTime           @db.Date
+  relationship   MemberRelationship
+  isPolicyholder Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+
+  enrollment PolicyEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+
+  @@unique([enrollmentId, memberCode])
+  @@index([enrollmentId])
+  @@map("members")
+}
+
+model PolicyEnrollmentAddon {
+  enrollmentId   String   @db.Uuid
+  addonVersionId String   @db.Uuid
+  createdAt      DateTime @default(now())
+
+  enrollment   PolicyEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  addonVersion AddonVersion     @relation(fields: [addonVersionId], references: [id], onDelete: Restrict)
+
+  @@id([enrollmentId, addonVersionId])
+  @@index([addonVersionId])
+  @@map("policy_enrollment_addons")
 }
 
 model AddonVersion {
@@ -111,17 +164,16 @@ model AddonVersion {
   name          String
   versionNumber Int
   status        AddonVersionStatus @default(ACTIVE)
-  effectiveFrom DateTime           @db.Date
-  effectiveTo   DateTime?          @db.Date
   createdAt     DateTime           @default(now())
 
-  insurer            Hospital                   @relation("AddonVersionInsurer", fields: [insurerId], references: [id], onDelete: Restrict)
-  compatiblePolicies PolicyAddonCompatibility[]
-  clauses            PolicyClause[]
-  rules              PolicyRuleVersion[]
+  insurer              Hospital                   @relation("AddonVersionInsurer", fields: [insurerId], references: [id], onDelete: Restrict)
+  compatiblePolicies   PolicyAddonCompatibility[]
+  clauses              PolicyClause[]
+  rules                PolicyRuleVersion[]
+  enrollmentSelections PolicyEnrollmentAddon[]
 
   @@unique([insurerId, code, versionNumber])
-  @@index([insurerId, status, effectiveFrom, effectiveTo])
+  @@index([insurerId, status])
   @@map("addon_versions")
 }
 
@@ -168,8 +220,6 @@ model PolicyRuleVersion {
   ruleType        PolicyRuleType
   parameters      Json
   priority        Int            @default(0)
-  effectiveFrom   DateTime       @db.Date
-  effectiveTo     DateTime?      @db.Date
   createdAt       DateTime       @default(now())
 
   policyVersion PolicyVersion      @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
@@ -177,7 +227,7 @@ model PolicyRuleVersion {
   clauseLinks   PolicyRuleClause[]
 
   @@unique([ruleId, versionNumber])
-  @@index([policyVersionId, addonVersionId, ruleType, effectiveFrom, effectiveTo])
+  @@index([policyVersionId, addonVersionId, ruleType])
   @@map("policy_rule_versions")
 }
 
