@@ -7,6 +7,7 @@ import { notFoundHandler } from './middleware/not-found';
 import { requestIdMiddleware } from './middleware/request-id';
 import { requestLoggerMiddleware } from './middleware/request-logger';
 import { authRouter } from './modules/auth/auth.routes';
+import { policyContextRouter } from './modules/policy-context/policy-context.routes';
 import { sendSuccess } from './utils/response';
 
 /**
@@ -42,6 +43,9 @@ export function createApp(): Application {
 
   // Public demo authentication routes
   app.use('/auth', authRouter);
+
+  // Insurer-only policy inspection; hospitals receive no policy-detail route.
+  app.use('/policy-context', policyContextRouter);
 
   // 404 Catch-All Middleware (captures unmatched routes)
   app.use(notFoundHandler);
