@@ -1,5 +1,5 @@
 /**
- * Aven Database Seed — Stage 020
+ * Aven Database Seed — through Stage 036
  *
  * Inserts fictional demo organizations and users for local development.
  * All identities are synthetic. No real patient, hospital, or insurer data.
@@ -32,8 +32,8 @@ const prisma = new PrismaClient();
 
 const IDS = {
   // Organizations (stored as Hospital rows — isInsurer flag differentiates)
-  MERIDIAN: 'a1000000-0000-4000-8000-000000000001',   // fictional insurer org
-  CITY_CARE: 'a2000000-0000-4000-8000-000000000002',  // fictional hospital 1
+  MERIDIAN: 'a1000000-0000-4000-8000-000000000001', // fictional insurer org
+  CITY_CARE: 'a2000000-0000-4000-8000-000000000002', // fictional hospital 1
   METRO_GENERAL: 'a3000000-0000-4000-8000-000000000003', // fictional hospital 2
 
   // Users
@@ -43,6 +43,22 @@ const IDS = {
   DESK_CITY_CARE: 'b4000000-0000-4000-8000-000000000004',
   DESK_METRO: 'b5000000-0000-4000-8000-000000000005',
   PATIENT_1: 'b6000000-0000-4000-8000-000000000006',
+
+  // Supported policy products
+  CARE_ADVANCED_PRODUCT: 'c1000000-0000-4000-8000-000000000001',
+  CARE_ADVANTAGE_PRODUCT: 'c1000000-0000-4000-8000-000000000002',
+  CARE_SUPREME_PRODUCT: 'c1000000-0000-4000-8000-000000000003',
+  SENIOR_HEALTH_ADVANTAGE_PRODUCT: 'c1000000-0000-4000-8000-000000000004',
+  SPECIAL_CARE_PRODUCT: 'c1000000-0000-4000-8000-000000000005',
+  ULTIMATE_CARE_PRODUCT: 'c1000000-0000-4000-8000-000000000006',
+
+  // Supported policy versions
+  CARE_ADVANCED_V1: 'c2000000-0000-4000-8000-000000000001',
+  CARE_ADVANTAGE_V1: 'c2000000-0000-4000-8000-000000000002',
+  CARE_SUPREME_V1: 'c2000000-0000-4000-8000-000000000003',
+  SENIOR_HEALTH_ADVANTAGE_V1: 'c2000000-0000-4000-8000-000000000004',
+  SPECIAL_CARE_V1: 'c2000000-0000-4000-8000-000000000005',
+  ULTIMATE_CARE_V1: 'c2000000-0000-4000-8000-000000000006',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -64,7 +80,7 @@ const organizations = [
     id: IDS.MERIDIAN,
     name: 'Meridian Health Assurance',
     slug: 'meridian-health-assurance',
-    rohiniId: null,             // insurers are not in the ROHINI hospital registry
+    rohiniId: null, // insurers are not in the ROHINI hospital registry
     city: 'Mumbai',
     state: 'Maharashtra',
     isActive: true,
@@ -152,51 +168,134 @@ const users = [
   },
 ] as const;
 
+/**
+ * Supported product names from the supplied T&C documents.
+ * The filename dates are not treated as policy-validity dates. PDF text,
+ * clauses, addons and embeddings are deferred to private RAG ingestion.
+ */
+const policyCatalog = [
+  {
+    productId: IDS.CARE_ADVANCED_PRODUCT,
+    versionId: IDS.CARE_ADVANCED_V1,
+    code: 'CARE_ADVANCED',
+    name: 'Care Advanced',
+  },
+  {
+    productId: IDS.CARE_ADVANTAGE_PRODUCT,
+    versionId: IDS.CARE_ADVANTAGE_V1,
+    code: 'CARE_ADVANTAGE',
+    name: 'Care Advantage',
+  },
+  {
+    productId: IDS.CARE_SUPREME_PRODUCT,
+    versionId: IDS.CARE_SUPREME_V1,
+    code: 'CARE_SUPREME',
+    name: 'Care Supreme',
+  },
+  {
+    productId: IDS.SENIOR_HEALTH_ADVANTAGE_PRODUCT,
+    versionId: IDS.SENIOR_HEALTH_ADVANTAGE_V1,
+    code: 'SENIOR_HEALTH_ADVANTAGE',
+    name: 'Senior Health Advantage',
+  },
+  {
+    productId: IDS.SPECIAL_CARE_PRODUCT,
+    versionId: IDS.SPECIAL_CARE_V1,
+    code: 'SPECIAL_CARE',
+    name: 'Special Care',
+  },
+  {
+    productId: IDS.ULTIMATE_CARE_PRODUCT,
+    versionId: IDS.ULTIMATE_CARE_V1,
+    code: 'ULTIMATE_CARE',
+    name: 'Ultimate Care',
+  },
+] as const;
+
 // ---------------------------------------------------------------------------
 // Main seed function
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log('🌱 Aven seed starting...\n');
+  console.info('🌱 Aven seed starting...\n');
 
   // --- Upsert organizations (hospitals + insurer org) ---
-  console.log('📋 Upserting organizations...');
+  console.info('📋 Upserting organizations...');
 
   for (const org of organizations) {
     await prisma.hospital.upsert({
       where: { id: org.id },
-      update: {},  // no-op if row already exists — preserves any manual edits
+      update: {}, // no-op if row already exists — preserves any manual edits
       create: org,
     });
-    console.log(`   ✔ ${org.name} (${org.slug})`);
+    console.info(`   ✔ ${org.name} (${org.slug})`);
   }
 
   // --- Upsert users ---
-  console.log('\n👤 Upserting users...');
+  console.info('\n👤 Upserting users...');
 
   for (const user of users) {
     await prisma.user.upsert({
       where: { id: user.id },
-      update: {},  // no-op if row already exists
+      update: {}, // no-op if row already exists
       create: user,
     });
-    console.log(`   ✔ ${user.name} <${user.email}> [${user.role}]`);
+    console.info(`   ✔ ${user.name} <${user.email}> [${user.role}]`);
+  }
+
+  // --- Upsert policy catalog metadata ---
+  console.info('\n📚 Upserting supported policy catalog...');
+
+  for (const policy of policyCatalog) {
+    await prisma.policyProduct.upsert({
+      where: { id: policy.productId },
+      update: {},
+      create: {
+        id: policy.productId,
+        insurerId: IDS.MERIDIAN,
+        code: policy.code,
+        name: policy.name,
+      },
+    });
+
+    // PolicyVersion rows are immutable, so create only when missing instead
+    // of issuing an upsert update that could activate the mutation trigger.
+    const existingVersion = await prisma.policyVersion.findUnique({
+      where: { id: policy.versionId },
+      select: { id: true },
+    });
+
+    if (!existingVersion) {
+      await prisma.policyVersion.create({
+        data: {
+          id: policy.versionId,
+          policyProductId: policy.productId,
+          versionNumber: 1,
+        },
+      });
+    }
+
+    console.info(`   ✔ ${policy.name} v1`);
   }
 
   // --- Summary ---
   const hospitalCount = await prisma.hospital.count();
   const userCount = await prisma.user.count();
+  const policyProductCount = await prisma.policyProduct.count();
+  const policyVersionCount = await prisma.policyVersion.count();
 
-  console.log('\n✅ Seed complete.');
-  console.log(`   Hospitals / orgs in DB : ${hospitalCount}`);
-  console.log(`   Users in DB            : ${userCount}`);
-  console.log('\nDemo accounts:');
-  console.log('   ADMIN           → admin@meridian-demo.aven');
-  console.log('   INSURER_REVIEWER → reviewer.arjun@meridian-demo.aven');
-  console.log('   INSURER_REVIEWER → reviewer.kavya@meridian-demo.aven');
-  console.log('   HOSPITAL_DESK   → desk@citycare-demo.aven    (City Care Hospital)');
-  console.log('   HOSPITAL_DESK   → desk@metrogeneral-demo.aven (Metro General)');
-  console.log('   PATIENT         → patient.arun@demo.aven\n');
+  console.info('\n✅ Seed complete.');
+  console.info(`   Hospitals / orgs in DB : ${hospitalCount}`);
+  console.info(`   Users in DB            : ${userCount}`);
+  console.info(`   Policy products        : ${policyProductCount}`);
+  console.info(`   Policy versions        : ${policyVersionCount}`);
+  console.info('\nDemo accounts:');
+  console.info('   ADMIN           → admin@meridian-demo.aven');
+  console.info('   INSURER_REVIEWER → reviewer.arjun@meridian-demo.aven');
+  console.info('   INSURER_REVIEWER → reviewer.kavya@meridian-demo.aven');
+  console.info('   HOSPITAL_DESK   → desk@citycare-demo.aven    (City Care Hospital)');
+  console.info('   HOSPITAL_DESK   → desk@metrogeneral-demo.aven (Metro General)');
+  console.info('   PATIENT         → patient.arun@demo.aven\n');
 }
 
 main()
