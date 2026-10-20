@@ -2,6 +2,7 @@ import { createApp } from './app';
 import { env } from './config/env';
 import { connectDatabase, disconnectDatabase } from './db/prisma';
 import { logger } from './utils/logger';
+import { ensureDocumentBucket } from './modules/documents/object-store';
 
 /**
  * Server Startup Routine
@@ -11,6 +12,7 @@ async function startServer(): Promise<void> {
   try {
     // 1. Verify database connectivity before accepting HTTP traffic (Fail-Fast)
     await connectDatabase();
+    await ensureDocumentBucket();
 
     // 2. Build configured Express application instance
     const app = createApp();
@@ -43,7 +45,11 @@ async function startServer(): Promise<void> {
 
       // Force terminate if shutdown hangs beyond 10 seconds
       setTimeout(() => {
-        logger.error('Shutdown timed out after 10 seconds, forcefully terminating process', undefined, { signal });
+        logger.error(
+          'Shutdown timed out after 10 seconds, forcefully terminating process',
+          undefined,
+          { signal },
+        );
         process.exit(1);
       }, 10000).unref();
     }

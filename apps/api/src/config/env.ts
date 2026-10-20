@@ -40,7 +40,7 @@ const envSchema = z.object({
   // AI Advisory Service
   AI_SERVICE_URL: z.string().url().default('http://localhost:8000'),
 
-  // MinIO / S3 Object Storage
+  // S3-compatible object storage (SeaweedFS in local development)
   S3_ENDPOINT: z.string().default('http://localhost:9000'),
   S3_PORT: z.coerce.number().int().positive().default(9000),
   S3_REGION: z.string().default('us-east-1'),
