@@ -25,3 +25,7 @@ export * from './policy-rules';
 
 // Reviewer-side resolved policy context
 export * from './policy-context';
+
+// Hospital claim drafts
+export * from './claims';
+export * from './documents';
