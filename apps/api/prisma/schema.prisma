@@ -41,6 +41,41 @@ enum MemberRelationship {
   OTHER
 }
 
+enum ClaimStatus {
+  DRAFT
+  SUBMITTED
+  ANALYSING
+  NEEDS_INFORMATION
+  READY_FOR_REVIEW
+  UNDER_REVIEW
+  APPROVED
+  PARTIALLY_APPROVED
+  REFUSAL_PENDING
+  REFUSED
+  CLOSED
+}
+
+enum DocumentType {
+  PREAUTH_FORM
+  MEMBER_PROOF
+  CLINICAL_NOTE
+  INVESTIGATION_REPORT
+  TREATMENT_PLAN
+  ESTIMATE
+  CONSENT
+  OTHER
+}
+
+enum DocumentProcessingStatus {
+  UPLOADED
+  VALIDATING
+  READY
+  ANALYSING
+  ANALYSED
+  UNREADABLE
+  FAILED
+}
+
 model Hospital {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
@@ -55,21 +90,24 @@ model Hospital {
   users          User[]
   policyProducts PolicyProduct[] @relation("PolicyProductInsurer")
   addonVersions  AddonVersion[]  @relation("AddonVersionInsurer")
+  claims         Claim[]
 
   @@index([isActive])
   @@map("hospitals")
 }
 
 model User {
-  id         String    @id @default(uuid()) @db.Uuid
-  email      String    @unique
-  name       String
-  role       UserRole
-  hospitalId String?   @db.Uuid
-  hospital   Hospital? @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
-  isActive   Boolean   @default(true)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id          String       @id @default(uuid()) @db.Uuid
+  email       String       @unique
+  name        String
+  role        UserRole
+  hospitalId  String?      @db.Uuid
+  hospital    Hospital?    @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  claimEvents ClaimEvent[]
+  documentVersions DocumentVersion[]
 
   @@index([role])
   @@index([hospitalId])
@@ -122,6 +160,7 @@ model PolicyEnrollment {
   policyVersion  PolicyVersion           @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
   members        Member[]
   selectedAddons PolicyEnrollmentAddon[]
+  claims         Claim[]
 
   @@index([policyVersionId, coverageStart, coverageEnd])
   @@map("policy_enrollments")
@@ -138,10 +177,101 @@ model Member {
   createdAt      DateTime           @default(now())
 
   enrollment PolicyEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  claims     Claim[]
 
   @@unique([enrollmentId, memberCode])
   @@index([enrollmentId])
   @@map("members")
+}
+
+model Claim {
+  id                  String      @id @default(uuid()) @db.Uuid
+  hospitalId          String      @db.Uuid
+  enrollmentId        String      @db.Uuid
+  memberId            String      @db.Uuid
+  status              ClaimStatus @default(DRAFT)
+  version             Int         @default(1)
+  currentRevision     Int         @default(1)
+  originalReceiptAt   DateTime?
+  emergencyReason     String?     @db.VarChar(500)
+  missingAtSubmission Json?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  hospital   Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  enrollment PolicyEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  member     Member           @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  revisions  ClaimRevision[]
+  events     ClaimEvent[]
+  documents  Document[]
+
+  @@index([hospitalId, status, updatedAt])
+  @@index([enrollmentId])
+  @@map("claims")
+}
+
+model Document {
+  id             String       @id @default(uuid()) @db.Uuid
+  claimId        String       @db.Uuid
+  type           DocumentType
+  currentVersion Int          @default(1)
+  createdAt      DateTime     @default(now())
+
+  claim    Claim             @relation(fields: [claimId], references: [id], onDelete: Restrict)
+  versions DocumentVersion[]
+
+  @@index([claimId, createdAt])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  documentId         String                   @db.Uuid
+  version            Int
+  objectKey          String                   @unique
+  sha256             String                   @db.VarChar(64)
+  sizeBytes          Int
+  mediaType          String                   @db.VarChar(100)
+  processingStatus   DocumentProcessingStatus @default(READY)
+  uploadedByUserId   String                   @db.Uuid
+  replacementReason  String?                  @db.VarChar(500)
+  createdAt          DateTime                 @default(now())
+
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  uploadedBy User     @relation(fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([documentId, version])
+  @@map("document_versions")
+}
+
+model ClaimRevision {
+  id             String   @id @default(uuid()) @db.Uuid
+  claimId        String   @db.Uuid
+  revisionNumber Int
+  intake         Json
+  createdAt      DateTime @default(now())
+
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Restrict)
+
+  @@unique([claimId, revisionNumber])
+  @@map("claim_revisions")
+}
+
+model ClaimEvent {
+  id           String      @id @default(uuid()) @db.Uuid
+  claimId      String      @db.Uuid
+  actorUserId  String?     @db.Uuid
+  fromStatus   ClaimStatus?
+  toStatus     ClaimStatus
+  claimVersion Int
+  reason       String?     @db.VarChar(500)
+  createdAt    DateTime    @default(now())
+
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Restrict)
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([claimId, createdAt])
+  @@map("claim_events")
 }
 
 model PolicyEnrollmentAddon {
