@@ -12,7 +12,7 @@
     "dev": "npm run dev --workspaces --if-present",
     "dev:web": "npm run dev --workspace=apps/web",
     "dev:api": "npm run dev --workspace=apps/api",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build:contracts && npm run build:api",
     "build:contracts": "npm run build --workspace=packages/contracts",
     "build:api": "npm run build --workspace=apps/api",
     "build:web": "npm run build --workspace=apps/web",

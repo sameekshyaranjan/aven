@@ -42,32 +42,32 @@ In a typical cashless hospitalization, a hospital submits a pre-authorization re
 
 ## Non-Negotiable Safety Principles
 
-| Principle | Implementation |
-|-----------|---------------|
-| **AI Never Decides** | Only authenticated insurer reviewers may approve, partially approve, or refuse. AI extracts and drafts only. |
-| **No Auto-Denial** | An overdue hospital response triggers reminders and staff escalation — never automatic denial. |
-| **Immutable Deadlines** | The original receipt timestamp is set once at submission. Retries, re-analyses, and clarifications never reset it. |
-| **Evidence Before Conclusions** | Every finding retains document ID, page, quote, clause version, and calculation inputs. No isolated LLM summaries. |
-| **Dated Evidence Required** | A current diagnosis is never used as proof of prior knowledge without dated documentary evidence and human confirmation. |
-| **Sole Write Authority** | Express (`apps/api`) is the only service that writes to PostgreSQL. The Python AI service returns candidate findings only. |
-| **Synthetic Data Only** | All identities, hospitals, policies, and claims are fictional. Real patient data never enters code, seeds, or logs. |
+| Principle                       | Implementation                                                                                                             |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **AI Never Decides**            | Only authenticated insurer reviewers may approve, partially approve, or refuse. AI extracts and drafts only.               |
+| **No Auto-Denial**              | An overdue hospital response triggers reminders and staff escalation — never automatic denial.                             |
+| **Immutable Deadlines**         | The original receipt timestamp is set once at submission. Retries, re-analyses, and clarifications never reset it.         |
+| **Evidence Before Conclusions** | Every finding retains document ID, page, quote, clause version, and calculation inputs. No isolated LLM summaries.         |
+| **Dated Evidence Required**     | A current diagnosis is never used as proof of prior knowledge without dated documentary evidence and human confirmation.   |
+| **Sole Write Authority**        | Express (`apps/api`) is the only service that writes to PostgreSQL. The Python AI service returns candidate findings only. |
+| **Synthetic Data Only**         | All identities, hospitals, policies, and claims are fictional. Real patient data never enters code, seeds, or logs.        |
 
 ---
 
 ## Technology Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui |
-| Core API | Express.js, TypeScript, Zod validation, structured JSON logging |
-| Database | PostgreSQL 16 with `pgvector` extension, Prisma ORM |
-| AI Service | FastAPI, Python, LangGraph, LangChain |
-| LLM Provider | Google Gemini (structured generation, multimodal) |
-| Vector Search | PostgreSQL `pgvector` — embeddings stored alongside relational data |
-| Object Storage | S3-compatible (local: MinIO-compatible), for medical document storage |
-| Job Queue | PostgreSQL-backed queue with `SKIP LOCKED`, lease expiry, and attempt fencing |
-| Monorepo | npm workspaces |
-| Local Infrastructure | Docker Compose |
+| Layer                | Technology                                                                    |
+| -------------------- | ----------------------------------------------------------------------------- |
+| Frontend             | Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui                  |
+| Core API             | Express.js, TypeScript, Zod validation, structured JSON logging               |
+| Database             | PostgreSQL 16 with `pgvector` extension, Prisma ORM                           |
+| AI Service           | FastAPI, Python, LangGraph, LangChain                                         |
+| LLM Provider         | Google Gemini (structured generation, multimodal)                             |
+| Vector Search        | PostgreSQL `pgvector` — embeddings stored alongside relational data           |
+| Object Storage       | S3-compatible (local: SeaweedFS), for synthetic claim documents               |
+| Job Queue            | PostgreSQL-backed queue with `SKIP LOCKED`, lease expiry, and attempt fencing |
+| Monorepo             | npm workspaces                                                                |
+| Local Infrastructure | Docker Compose                                                                |
 
 ---
 
@@ -192,14 +192,14 @@ Health check: **http://localhost:4000/health**
 
 All identities are completely fictional.
 
-| Name | Email | Role | Organization |
-|------|-------|------|-------------|
-| Priya Sharma | admin@meridian-demo.aven | Admin | Meridian Health Assurance |
-| Arjun Mehta | reviewer.arjun@meridian-demo.aven | Insurer Reviewer | Meridian Health Assurance |
-| Kavya Nair | reviewer.kavya@meridian-demo.aven | Insurer Reviewer | Meridian Health Assurance |
-| Rohan Desai | desk@citycare-demo.aven | Hospital Desk | City Care Hospital |
-| Sneha Kulkarni | desk@metrogeneral-demo.aven | Hospital Desk | Metro General Hospital |
-| Arun Verma | patient.arun@demo.aven | Patient | — |
+| Name           | Email                             | Role             | Organization              |
+| -------------- | --------------------------------- | ---------------- | ------------------------- |
+| Priya Sharma   | admin@meridian-demo.aven          | Admin            | Meridian Health Assurance |
+| Arjun Mehta    | reviewer.arjun@meridian-demo.aven | Insurer Reviewer | Meridian Health Assurance |
+| Kavya Nair     | reviewer.kavya@meridian-demo.aven | Insurer Reviewer | Meridian Health Assurance |
+| Rohan Desai    | desk@citycare-demo.aven           | Hospital Desk    | City Care Hospital        |
+| Sneha Kulkarni | desk@metrogeneral-demo.aven       | Hospital Desk    | Metro General Hospital    |
+| Arun Verma     | patient.arun@demo.aven            | Patient          | —                         |
 
 ---
 
@@ -208,15 +208,19 @@ All identities are completely fictional.
 Aven is built through a disciplined stage-by-stage implementation roadmap. Each stage is a focused, atomic unit of functionality.
 
 ### ✅ Phase 1 — Repository & Architecture (Stages 001–010)
+
 npm workspaces monorepo · strict `.gitignore` · code quality tooling (ESLint, Prettier, EditorConfig) · Docker Compose with `pgvector/pgvector:pg16` · Python FastAPI skeleton · local environment conventions
 
 ### ✅ Phase 2 — Express & PostgreSQL Foundation (Stages 011–020)
+
 Express application factory · Helmet + CORS · `/health` endpoint · Zod fail-fast config validation · Request IDs (`X-Request-Id`) · nanosecond timing · privacy-preserving structured JSON logger (no request/response body logging) · Standard `{ data, meta, error }` API response envelope · Typed `AppError` hierarchy · centralized error middleware · Prisma ORM initialization · `pgvector` extension · fail-fast database lifecycle · `Hospital` + `User` + `UserRole` models · first database migration · idempotent demo seed
 
 ### 🔨 Phase 3 — Authentication & Authorization (Stages 021–030)
-*In progress — shared contracts, demo login, JWT auth middleware, role guards, hospital row scoping*
+
+_In progress — shared contracts, demo login, JWT auth middleware, role guards, hospital row scoping_
 
 ### Upcoming Phases
+
 - **Phase 4** — Policy models and versioned rules
 - **Phase 5** — Claim intake and state machine
 - **Phase 6** — Document storage and object storage integration
