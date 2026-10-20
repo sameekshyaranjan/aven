@@ -49,6 +49,7 @@ data/
 PDFS/
 pdfs/
 *.pdf
+!apps/api/fixtures/synthetic/*.pdf
 private/
 
 # Operating System and IDE files
