@@ -1,48 +1,52 @@
-"""FastAPI Application entry point for Aven AI Service."""
+"""FastAPI entry point: python -m uvicorn main:app --reload --no-access-log."""
+
+import json
 import logging
+from time import perf_counter_ns
+from uuid import uuid4
 
-try:
-    from fastapi import FastAPI
-    from fastapi.middleware.cors import CORSMiddleware
-except ImportError:
-    FastAPI = None  # type: ignore
+from fastapi import FastAPI, Request
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("aven-ai")
+from src.config import settings
 
 
-def create_app():
-    if FastAPI is None:
-        raise RuntimeError(
-            "FastAPI is not installed. Please set up the virtual environment and install dependencies."
+def create_app() -> FastAPI:
+    app = FastAPI(title="Aven AI Advisory Service", version="0.1.0")
+    logger = logging.getLogger("aven.ai")
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+    @app.middleware("http")
+    async def safe_request_log(request: Request, call_next):
+        started = perf_counter_ns()
+        request_id = str(uuid4())
+        try:
+            response = await call_next(request)
+        except Exception:
+            logger.error(json.dumps({"request_id": request_id, "status": 500}))
+            raise
+        response.headers["X-Request-Id"] = request_id
+        logger.info(
+            json.dumps(
+                {
+                    "request_id": request_id,
+                    "method": request.method,
+                    "status": response.status_code,
+                    "duration_ms": round((perf_counter_ns() - started) / 1_000_000, 2),
+                }
+            )
         )
-
-    app = FastAPI(
-        title="Aven AI Advisory Service",
-        description="Stateless document extraction, clause retrieval, and candidate analysis workflow engine.",
-        version="0.1.0",
-    )
-
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://localhost:4000"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+        return response
 
     @app.get("/health")
-    async def health_check():
-        return {
-            "status": "ok",
-            "service": "aven-ai",
-            "version": "0.1.0",
-        }
+    def health():
+        return {"status": "ok", "service": "aven-ai", "environment": settings.ENVIRONMENT}
 
     return app
 
 
-if FastAPI is not None:
-    app = create_app()
-else:
-    app = None
+app = create_app()

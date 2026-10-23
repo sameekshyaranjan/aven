@@ -1,32 +1,23 @@
-"""Configuration settings for Aven AI Service."""
-import os
-from typing import Optional
+"""Validated settings for the advisory service."""
 
-try:
-    from pydantic_settings import BaseSettings
+from pathlib import Path
+from typing import Literal
 
-    class Settings(BaseSettings):
-        PORT: int = 8000
-        ENVIRONMENT: str = "development"
-        DATABASE_URL: Optional[str] = None
-        GEMINI_API_KEY: Optional[str] = None
-        EMBEDDING_MODEL: str = "text-embedding-004"
-        CHAT_MODEL: str = "gemini-1.5-pro"
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-        class Config:
-            env_file = ".env"
-            extra = "ignore"
 
-    settings = Settings()
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parents[1] / ".env", extra="ignore"
+    )
 
-except ImportError:
-    # Lightweight fallback before dependencies are installed
-    class FallbackSettings:
-        PORT: int = int(os.getenv("PORT", "8000"))
-        ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
-        DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
-        GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY")
-        EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "text-embedding-004")
-        CHAT_MODEL: str = os.getenv("CHAT_MODEL", "gemini-1.5-pro")
+    PORT: int = Field(default=8000, ge=1, le=65535)
+    ENVIRONMENT: Literal["development", "test", "production"] = "development"
+    DATABASE_URL: str | None = None
+    GEMINI_API_KEY: str | None = None
+    EMBEDDING_MODEL: str = "gemini-embedding-2"
+    CHAT_MODEL: str = "gemini-1.5-pro"
 
-    settings = FallbackSettings()  # type: ignore
+
+settings = Settings()

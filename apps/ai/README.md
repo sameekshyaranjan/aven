@@ -55,7 +55,7 @@ Copy-Item ".env.example" ".env"
 ### 5. Run the FastAPI Development Server
 
 ```powershell
-uvicorn main:app --reload --port 8000
+python -m uvicorn main:app --reload --no-access-log --port 8000
 ```
 
 - **API Documentation (Swagger UI):** `http://localhost:8000/docs`
