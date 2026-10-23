@@ -59,6 +59,8 @@ const IDS = {
   SENIOR_HEALTH_ADVANTAGE_V1: 'c2000000-0000-4000-8000-000000000004',
   SPECIAL_CARE_V1: 'c2000000-0000-4000-8000-000000000005',
   ULTIMATE_CARE_V1: 'c2000000-0000-4000-8000-000000000006',
+  DEMO_ENROLLMENT: 'd1000000-0000-4000-8000-000000000001',
+  DEMO_MEMBER: 'd2000000-0000-4000-8000-000000000001',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -277,6 +279,32 @@ async function main(): Promise<void> {
 
     console.info(`   ✔ ${policy.name} v1`);
   }
+
+  // A fictional policy copy/member for trying the hospital e-claim form.
+  await prisma.policyEnrollment.upsert({
+    where: { id: IDS.DEMO_ENROLLMENT },
+    update: {},
+    create: {
+      id: IDS.DEMO_ENROLLMENT,
+      policyNumber: 'DEMO-POLICY-001',
+      policyVersionId: IDS.CARE_ADVANCED_V1,
+      coverageStart: new Date('2026-01-01T00:00:00.000Z'),
+      coverageEnd: new Date('2027-01-01T00:00:00.000Z'),
+    },
+  });
+  await prisma.member.upsert({
+    where: { id: IDS.DEMO_MEMBER },
+    update: {},
+    create: {
+      id: IDS.DEMO_MEMBER,
+      enrollmentId: IDS.DEMO_ENROLLMENT,
+      memberCode: 'DEMO-MEMBER-001',
+      fullName: 'Alex Demo',
+      dateOfBirth: new Date('1990-01-01T00:00:00.000Z'),
+      relationship: 'SELF',
+      isPolicyholder: true,
+    },
+  });
 
   // --- Summary ---
   const hospitalCount = await prisma.hospital.count();

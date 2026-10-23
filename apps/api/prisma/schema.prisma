@@ -55,6 +55,17 @@ enum ClaimStatus {
   CLOSED
 }
 
+enum ReviewActionKind {
+  NOTE
+  CONFIRM
+  FLAG
+}
+
+enum InformationRequestStatus {
+  OPEN
+  RESPONSE_RECEIVED
+}
+
 enum DocumentType {
   PREAUTH_FORM
   MEMBER_PROOF
@@ -74,6 +85,28 @@ enum DocumentProcessingStatus {
   ANALYSED
   UNREADABLE
   FAILED
+}
+
+enum AiJobKind {
+  CLAIM_ANALYSIS
+}
+
+enum AiJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+  MANUAL_REVIEW
+  SUPERSEDED
+}
+
+enum AiAttemptStatus {
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+  EXPIRED
 }
 
 model Hospital {
@@ -97,17 +130,21 @@ model Hospital {
 }
 
 model User {
-  id          String       @id @default(uuid()) @db.Uuid
-  email       String       @unique
-  name        String
-  role        UserRole
-  hospitalId  String?      @db.Uuid
-  hospital    Hospital?    @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  claimEvents ClaimEvent[]
-  documentVersions DocumentVersion[]
+  id                   String                @id @default(uuid()) @db.Uuid
+  email                String                @unique
+  name                 String
+  role                 UserRole
+  hospitalId           String?               @db.Uuid
+  hospital             Hospital?             @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
+  isActive             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  claimEvents          ClaimEvent[]
+  documentVersions     DocumentVersion[]
+  reviewActions        ReviewAction[]
+  informationRequests  InformationRequest[]
+  informationResponses InformationResponse[]
+  notifications        Notification[]
 
   @@index([role])
   @@index([hospitalId])
@@ -143,6 +180,7 @@ model PolicyVersion {
   clauses          PolicyClause[]
   rules            PolicyRuleVersion[]
   enrollments      PolicyEnrollment[]
+  aiJobs           AiJob[]
 
   @@unique([policyProductId, versionNumber])
   @@index([policyProductId, status])
@@ -198,16 +236,82 @@ model Claim {
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
-  hospital   Hospital         @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
-  enrollment PolicyEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
-  member     Member           @relation(fields: [memberId], references: [id], onDelete: Restrict)
-  revisions  ClaimRevision[]
-  events     ClaimEvent[]
-  documents  Document[]
+  hospital            Hospital             @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  enrollment          PolicyEnrollment     @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  member              Member               @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  revisions           ClaimRevision[]
+  events              ClaimEvent[]
+  documents           Document[]
+  reviewActions       ReviewAction[]
+  informationRequests InformationRequest[]
+  notifications       Notification[]
+  aiJobs              AiJob[]
 
   @@index([hospitalId, status, updatedAt])
   @@index([enrollmentId])
   @@map("claims")
+}
+
+model ReviewAction {
+  id          String           @id @default(uuid()) @db.Uuid
+  claimId     String           @db.Uuid
+  actorUserId String           @db.Uuid
+  kind        ReviewActionKind
+  fieldKey    String?          @db.VarChar(100)
+  text        String           @db.VarChar(1000)
+  createdAt   DateTime         @default(now())
+
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Restrict)
+  actor User  @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([claimId, createdAt])
+  @@map("review_actions")
+}
+
+model InformationRequest {
+  id                String                   @id @default(uuid()) @db.Uuid
+  claimId           String                   @db.Uuid
+  reviewerUserId    String                   @db.Uuid
+  status            InformationRequestStatus @default(OPEN)
+  items             Json
+  publishedRevision Int
+  createdAt         DateTime                 @default(now())
+  response          InformationResponse?
+
+  claim    Claim @relation(fields: [claimId], references: [id], onDelete: Restrict)
+  reviewer User  @relation(fields: [reviewerUserId], references: [id], onDelete: Restrict)
+
+  @@index([claimId, status, createdAt])
+  @@map("information_requests")
+}
+
+model InformationResponse {
+  id             String   @id @default(uuid()) @db.Uuid
+  requestId      String   @unique @db.Uuid
+  hospitalUserId String   @db.Uuid
+  answers        Json
+  documentIds    Json
+  createdAt      DateTime @default(now())
+
+  request      InformationRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  hospitalUser User               @relation(fields: [hospitalUserId], references: [id], onDelete: Restrict)
+
+  @@map("information_responses")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  claimId   String    @db.Uuid
+  title     String    @db.VarChar(160)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  claim Claim @relation(fields: [claimId], references: [id], onDelete: Restrict)
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
 }
 
 model Document {
@@ -225,17 +329,17 @@ model Document {
 }
 
 model DocumentVersion {
-  id                 String                   @id @default(uuid()) @db.Uuid
-  documentId         String                   @db.Uuid
-  version            Int
-  objectKey          String                   @unique
-  sha256             String                   @db.VarChar(64)
-  sizeBytes          Int
-  mediaType          String                   @db.VarChar(100)
-  processingStatus   DocumentProcessingStatus @default(READY)
-  uploadedByUserId   String                   @db.Uuid
-  replacementReason  String?                  @db.VarChar(500)
-  createdAt          DateTime                 @default(now())
+  id                String                   @id @default(uuid()) @db.Uuid
+  documentId        String                   @db.Uuid
+  version           Int
+  objectKey         String                   @unique
+  sha256            String                   @db.VarChar(64)
+  sizeBytes         Int
+  mediaType         String                   @db.VarChar(100)
+  processingStatus  DocumentProcessingStatus @default(READY)
+  uploadedByUserId  String                   @db.Uuid
+  replacementReason String?                  @db.VarChar(500)
+  createdAt         DateTime                 @default(now())
 
   document   Document @relation(fields: [documentId], references: [id], onDelete: Restrict)
   uploadedBy User     @relation(fields: [uploadedByUserId], references: [id], onDelete: Restrict)
@@ -252,20 +356,67 @@ model ClaimRevision {
   createdAt      DateTime @default(now())
 
   claim Claim @relation(fields: [claimId], references: [id], onDelete: Restrict)
+  aiJobs AiJob[]
 
   @@unique([claimId, revisionNumber])
   @@map("claim_revisions")
 }
 
+model AiJob {
+  id                String      @id @default(uuid()) @db.Uuid
+  claimId           String      @db.Uuid
+  claimRevisionId   String      @db.Uuid
+  claimVersion      Int
+  policyVersionId   String      @db.Uuid
+  addonVersionIds   Json
+  documentSetHash   String      @db.VarChar(64)
+  kind              AiJobKind   @default(CLAIM_ANALYSIS)
+  status            AiJobStatus @default(QUEUED)
+  attemptGeneration Int         @default(0)
+  currentStage      String?     @db.VarChar(80)
+  lastErrorCode     String?     @db.VarChar(80)
+  result            Json?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  claim         Claim          @relation(fields: [claimId], references: [id], onDelete: Restrict)
+  claimRevision ClaimRevision  @relation(fields: [claimRevisionId], references: [id], onDelete: Restrict)
+  policyVersion PolicyVersion  @relation(fields: [policyVersionId], references: [id], onDelete: Restrict)
+  attempts      AiJobAttempt[]
+
+  @@unique([claimRevisionId, kind])
+  @@index([status, createdAt])
+  @@index([claimId, createdAt])
+  @@map("ai_jobs")
+}
+
+model AiJobAttempt {
+  id             String          @id @default(uuid()) @db.Uuid
+  jobId          String          @db.Uuid
+  generation     Int
+  status         AiAttemptStatus @default(RUNNING)
+  leaseToken     String?         @unique @db.Uuid
+  leaseExpiresAt DateTime?
+  startedAt      DateTime        @default(now())
+  finishedAt     DateTime?
+  errorCode      String?         @db.VarChar(80)
+  callbackHash   String?         @db.VarChar(64)
+
+  job AiJob @relation(fields: [jobId], references: [id], onDelete: Restrict)
+
+  @@unique([jobId, generation])
+  @@map("ai_job_attempts")
+}
+
 model ClaimEvent {
-  id           String      @id @default(uuid()) @db.Uuid
-  claimId      String      @db.Uuid
-  actorUserId  String?     @db.Uuid
+  id           String       @id @default(uuid()) @db.Uuid
+  claimId      String       @db.Uuid
+  actorUserId  String?      @db.Uuid
   fromStatus   ClaimStatus?
   toStatus     ClaimStatus
   claimVersion Int
-  reason       String?     @db.VarChar(500)
-  createdAt    DateTime    @default(now())
+  reason       String?      @db.VarChar(500)
+  createdAt    DateTime     @default(now())
 
   claim Claim @relation(fields: [claimId], references: [id], onDelete: Restrict)
   actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
