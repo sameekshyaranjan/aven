@@ -8,7 +8,7 @@ import {
   type HospitalClaim,
   type ClaimListQuery,
 } from '@aven/contracts';
-import type { Claim, Prisma } from '@prisma/client';
+import type { Claim, ClaimStatus, Prisma } from '@prisma/client';
 import { prisma } from '../../db/prisma';
 import { ConflictError, NotFoundError, ValidationError } from '../../errors/app-error';
 import { requireHospitalId, withHospitalScope } from '../auth/hospital-scope';
@@ -29,11 +29,14 @@ function draftResponse(claim: Claim, intake: ClaimIntake): DraftClaim {
   });
 }
 
+const hospitalStatus = (status: ClaimStatus): ClaimStatus =>
+  status === 'REFUSAL_PENDING' ? 'UNDER_REVIEW' : status;
+
 function hospitalResponse(claim: Claim, intake: ClaimIntake): HospitalClaim {
   return HospitalClaimSchema.parse({
     id: claim.id,
     memberId: claim.memberId,
-    status: claim.status,
+    status: hospitalStatus(claim.status),
     version: claim.version,
     revision: claim.currentRevision,
     intake,
@@ -200,7 +203,7 @@ export async function listHospitalClaims(actor: AuthenticatedActor, query: Claim
     items: claims.map((claim) => ({
       id: claim.id,
       memberId: claim.memberId,
-      status: claim.status,
+      status: hospitalStatus(claim.status),
       version: claim.version,
       revision: claim.currentRevision,
       originalReceiptAt: claim.originalReceiptAt?.toISOString() ?? null,
@@ -209,4 +212,22 @@ export async function listHospitalClaims(actor: AuthenticatedActor, query: Claim
     })),
     pagination: buildPaginationMeta({ page: query.page, pageSize: query.pageSize, totalItems }),
   };
+}
+
+export async function getHospitalTimeline(actor: AuthenticatedActor, claimId: string) {
+  const claim = await prisma.claim.findFirst({
+    where: withHospitalScope(actor, { id: claimId }),
+    select: { id: true },
+  });
+  if (!claim) throw new NotFoundError('Claim was not found.');
+  const events = await prisma.claimEvent.findMany({
+    where: { claimId },
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    select: { id: true, toStatus: true, createdAt: true },
+  });
+  return events.map((event) => ({
+    id: event.id,
+    status: hospitalStatus(event.toStatus),
+    createdAt: event.createdAt.toISOString(),
+  }));
 }

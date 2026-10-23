@@ -8,7 +8,7 @@ import { NotFoundError } from '../errors/app-error';
  */
 export function notFoundHandler(req: Request, _res: Response, next: NextFunction): void {
   const error = new NotFoundError(
-    `Cannot ${req.method} ${req.originalUrl}. Route does not exist on this server.`,
+    `Cannot ${req.method} this route. Route does not exist on this server.`,
   );
   next(error);
 }

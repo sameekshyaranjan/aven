@@ -13,6 +13,7 @@ import {
   createDraftClaim,
   getClaimCompleteness,
   getHospitalClaim,
+  getHospitalTimeline,
   listHospitalClaims,
   submitClaim,
   updateDraftClaim,
@@ -45,6 +46,16 @@ claimRouter.get('/', async (req: Request, res: Response, next: NextFunction) => 
 claimRouter.get('/:id/completeness', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await getClaimCompleteness(req.actor!, UuidSchema.parse(req.params.id));
+    res.setHeader('Cache-Control', 'no-store');
+    sendSuccess(res, result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+claimRouter.get('/:id/timeline', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await getHospitalTimeline(req.actor!, UuidSchema.parse(req.params.id));
     res.setHeader('Cache-Control', 'no-store');
     sendSuccess(res, result);
   } catch (error) {

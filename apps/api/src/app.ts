@@ -10,6 +10,8 @@ import { authRouter } from './modules/auth/auth.routes';
 import { policyContextRouter } from './modules/policy-context/policy-context.routes';
 import { claimRouter } from './modules/claims/claim.routes';
 import { documentRouter } from './modules/documents/document.routes';
+import { reviewRouter } from './modules/review/review.routes';
+import { aiJobRouter } from './modules/ai-jobs/ai-job.routes';
 import { sendSuccess } from './utils/response';
 
 /**
@@ -50,6 +52,8 @@ export function createApp(): Application {
   app.use('/policy-context', policyContextRouter);
   app.use('/claims/:claimId/documents', documentRouter);
   app.use('/claims', claimRouter);
+  app.use('/workflow', reviewRouter);
+  app.use('/internal/ai', aiJobRouter);
 
   // 404 Catch-All Middleware (captures unmatched routes)
   app.use(notFoundHandler);

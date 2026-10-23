@@ -19,7 +19,8 @@ export function requestLoggerMiddleware(req: Request, res: Response, next: NextF
     // Convert nanoseconds to milliseconds rounded to two decimal places
     const durationMs = Math.round(Number(endTime - startTime) / 10_000) / 100;
     const { statusCode } = res;
-    const path = req.originalUrl || req.url;
+    const path =
+      typeof req.route?.path === 'string' ? `${req.baseUrl}${req.route.path}` : 'unmatched';
 
     const logContext = {
       requestId: req.id || req.requestId,

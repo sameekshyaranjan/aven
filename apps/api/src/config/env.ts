@@ -39,6 +39,7 @@ const envSchema = z.object({
 
   // AI Advisory Service
   AI_SERVICE_URL: z.string().url().default('http://localhost:8000'),
+  AI_INTERNAL_TOKEN: z.string().min(32, 'AI_INTERNAL_TOKEN must be at least 32 characters.'),
 
   // S3-compatible object storage (SeaweedFS in local development)
   S3_ENDPOINT: z.string().default('http://localhost:9000'),
@@ -67,6 +68,7 @@ function loadAndValidateEnv(): Env {
     ? {
         DATABASE_URL: 'postgresql://mock_user:mock_pass@localhost:5432/mock_db',
         JWT_SECRET: 'test_secret_must_be_minimum_32_characters_long_for_test',
+        AI_INTERNAL_TOKEN: 'test_ai_internal_token_at_least_32_characters_long',
         ...process.env,
       }
     : process.env;

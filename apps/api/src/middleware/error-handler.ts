@@ -22,6 +22,8 @@ export function errorHandler(
   _next: NextFunction,
 ): void {
   const requestId = req.id || req.requestId || 'unknown';
+  const path =
+    typeof req.route?.path === 'string' ? `${req.baseUrl}${req.route.path}` : 'unmatched';
   let statusCode = 500;
   let code = 'INTERNAL_SERVER_ERROR';
   let message = 'An unexpected internal server error occurred.';
@@ -42,7 +44,12 @@ export function errorHandler(
       path: issue.path.join('.'),
       message: issue.message,
     }));
-  } else if (err instanceof SyntaxError && 'status' in err && (err as { status: unknown }).status === 400 && 'body' in err) {
+  } else if (
+    err instanceof SyntaxError &&
+    'status' in err &&
+    (err as { status: unknown }).status === 400 &&
+    'body' in err
+  ) {
     // Express body-parser malformed JSON syntax error
     statusCode = 400;
     code = 'INVALID_JSON';
@@ -64,24 +71,21 @@ export function errorHandler(
   // Structured Logging based on severity
   if (statusCode >= 500) {
     logger.error(
-      `Unhandled Server Error on ${req.method} ${req.originalUrl}: ${err instanceof Error ? err.message : String(err)}`,
-      err,
+      `Unhandled Server Error on ${req.method} ${path}`,
+      undefined,
       {
         requestId,
         statusCode,
         code,
+        errorType: err instanceof Error ? err.name : 'UnknownError',
       },
     );
   } else {
-    logger.warn(
-      `Operational Error on ${req.method} ${req.originalUrl}: ${message}`,
-      {
-        requestId,
-        statusCode,
-        code,
-        details,
-      },
-    );
+    logger.warn(`Operational Error on ${req.method} ${path}: ${code}`, {
+      requestId,
+      statusCode,
+      code,
+    });
   }
 
   sendError(res, { code, message, details }, statusCode);

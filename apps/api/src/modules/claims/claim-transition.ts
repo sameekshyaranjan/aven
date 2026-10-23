@@ -3,10 +3,11 @@ import { ConflictError, ForbiddenError, ValidationError } from '../../errors/app
 import type { AuthenticatedActor } from '../auth/auth.types';
 import { requireHospitalId } from '../auth/hospital-scope';
 import type { ClaimIntake } from '@aven/contracts';
+import { documentSetHash } from '../ai-jobs/document-set';
 
 const ALLOWED: Partial<Record<ClaimStatus, ClaimStatus[]>> = {
   DRAFT: ['SUBMITTED'],
-  SUBMITTED: ['ANALYSING', 'CLOSED'],
+  SUBMITTED: ['ANALYSING', 'NEEDS_INFORMATION', 'CLOSED'],
   ANALYSING: ['NEEDS_INFORMATION', 'READY_FOR_REVIEW', 'CLOSED'],
   NEEDS_INFORMATION: ['ANALYSING', 'READY_FOR_REVIEW', 'CLOSED'],
   READY_FOR_REVIEW: [
@@ -49,7 +50,10 @@ export function assertClaimTransition(
     throw new ForbiddenError();
   if (to === 'CLOSED' && role !== 'INSURER_REVIEWER' && role !== 'ADMIN')
     throw new ForbiddenError();
-  if (to === 'NEEDS_INFORMATION' && role !== (from === 'ANALYSING' ? 'SYSTEM' : 'INSURER_REVIEWER'))
+  if (
+    to === 'NEEDS_INFORMATION' &&
+    (from === 'ANALYSING' ? role !== 'SYSTEM' : role !== 'INSURER_REVIEWER' && role !== 'ADMIN')
+  )
     throw new ForbiddenError();
   if (to === 'READY_FOR_REVIEW' && from === 'ANALYSING' && role !== 'SYSTEM')
     throw new ForbiddenError();
@@ -63,6 +67,7 @@ export function assertClaimTransition(
     to === 'READY_FOR_REVIEW' &&
     from === 'NEEDS_INFORMATION' &&
     role !== 'INSURER_REVIEWER' &&
+    role !== 'HOSPITAL_DESK' &&
     role !== 'SYSTEM'
   )
     throw new ForbiddenError();
@@ -97,8 +102,23 @@ export async function submitTransition(
   if (changed.count !== 1)
     throw new ConflictError('This draft has changed. Reload it before submitting.');
 
-  await tx.claimRevision.create({
+  const revision = await tx.claimRevision.create({
     data: { claimId: claim.id, revisionNumber: claim.currentRevision + 1, intake },
+  });
+  const enrollment = await tx.policyEnrollment.findUniqueOrThrow({
+    where: { id: claim.enrollmentId },
+    select: { policyVersionId: true, selectedAddons: { select: { addonVersionId: true } } },
+  });
+  const hash = await documentSetHash(tx, claim.id);
+  await tx.aiJob.create({
+    data: {
+      claimId: claim.id,
+      claimRevisionId: revision.id,
+      claimVersion: claim.version + 1,
+      policyVersionId: enrollment.policyVersionId,
+      addonVersionIds: enrollment.selectedAddons.map((item) => item.addonVersionId).sort(),
+      documentSetHash: hash,
+    },
   });
   await tx.claimEvent.create({
     data: {
@@ -110,5 +130,17 @@ export async function submitTransition(
       reason: emergencyReason,
     },
   });
+  const reviewers = await tx.user.findMany({
+    where: { role: 'INSURER_REVIEWER', isActive: true },
+    select: { id: true },
+  });
+  if (reviewers.length)
+    await tx.notification.createMany({
+      data: reviewers.map((user) => ({
+        userId: user.id,
+        claimId: claim.id,
+        title: 'New claim submitted for review',
+      })),
+    });
   return tx.claim.findUniqueOrThrow({ where: { id: claim.id } });
 }
