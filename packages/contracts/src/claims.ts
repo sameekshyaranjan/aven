@@ -116,3 +116,11 @@ export const ClaimListItemSchema = HospitalClaimSchema.omit({
 });
 export type ClaimListItem = z.infer<typeof ClaimListItemSchema>;
 export const ClaimListResponseSchema = SuccessEnvelopeSchema(z.array(ClaimListItemSchema));
+
+/** Only hospital-visible status history; internal event reasons stay in the API. */
+export const HospitalTimelineItemSchema = z.object({
+  id: UuidSchema,
+  status: ClaimStatusSchema,
+  createdAt: IsoDateTimeSchema,
+});
+export type HospitalTimelineItem = z.infer<typeof HospitalTimelineItemSchema>;

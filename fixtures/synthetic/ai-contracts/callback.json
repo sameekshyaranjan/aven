@@ -1,0 +1,28 @@
+{
+  "job_id": "c1000000-0000-4000-8000-000000000001",
+  "claim_id": "c2000000-0000-4000-8000-000000000002",
+  "claim_revision": 2,
+  "attempt_generation": 1,
+  "lease_token": "c3000000-0000-4000-8000-000000000003",
+  "document_set_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "status": "PARTIAL",
+  "stages": [
+    { "name": "field_extraction", "status": "succeeded" },
+    { "name": "policy_retrieval", "status": "skipped" }
+  ],
+  "findings": [
+    {
+      "kind": "CLINICAL_UNCERTAINTY",
+      "summary": "The fictional note does not establish when the condition began.",
+      "evidence": [
+        {
+          "source_kind": "DOCUMENT",
+          "source_id": "c8000000-0000-4000-8000-000000000008",
+          "page": 1,
+          "quote": "Synthetic example: onset date unknown."
+        }
+      ]
+    }
+  ],
+  "error_code": null
+}
